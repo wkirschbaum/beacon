@@ -28,10 +28,8 @@ defmodule Mix.Tasks.Beacon.InstallTest do
     project
     |> Igniter.compose_task("beacon.install", ~w(--site my_site --path /my_site))
     |> assert_has_patch("lib/test_web/router.ex", """
-    19 + |  scope "/" do
-    20 + |    pipe_through [:browser]
-    21 + |    beacon_site "/my_site", site: :my_site
-    22 + |  end
+    24 + |    pipe_through [:browser, :beacon]
+    25 + |    beacon_site "/my_site", site: :my_site
     """)
   end
 end

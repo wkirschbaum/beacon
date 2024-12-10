@@ -51,9 +51,21 @@ defmodule Mix.Tasks.Beacon.Gen.Site do
     igniter
     |> create_migration(repo)
     |> add_use_beacon_in_router(router)
+    |> add_beacon_pipeline_in_router(router)
     |> mount_site_in_router(router, site, path)
     |> add_site_config_in_config_runtime(site, repo, router, endpoint)
     |> add_beacon_config_in_app_supervisor(site, repo, endpoint)
+    |> Igniter.add_notice("""
+    Site #{inspect(site)} generated successfully.
+
+    The site is usually mounted in the same scope as the one used by the host application,
+    in a best effort case to avoid conflicts, but conflicts can still happen or the site
+    might not be mounted in the most appropriate order for your application.
+
+    See the Route Precedence section in the Beacon.Router docs for more information.
+
+    https://hexdocs.pm/beacon/Beacon.Router.html
+    """)
   end
 
   defp validate_options!(site, path) do
@@ -97,6 +109,15 @@ defmodule Mix.Tasks.Beacon.Gen.Site do
     end)
   end
 
+  defp add_beacon_pipeline_in_router(igniter, router) do
+    Igniter.Libs.Phoenix.add_pipeline(
+      igniter,
+      :beacon,
+      "plug Beacon.Plug",
+      router: router
+    )
+  end
+
   defp create_migration(igniter, repo) do
     timestamp = if @test?, do: [timestamp: 0], else: []
 
@@ -135,8 +156,9 @@ defmodule Mix.Tasks.Beacon.Gen.Site do
             """
             beacon_site #{inspect(path)}, site: #{inspect(site)}
             """,
-            with_pipelines: [:browser],
-            router: router
+            with_pipelines: [:browser, :beacon],
+            router: router,
+            arg2: Igniter.Libs.Phoenix.web_module(igniter)
           )
         end
 

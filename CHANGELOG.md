@@ -1,11 +1,36 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 (2024-12-10)
+
+### Fixes
+
+  - Avoid unloading imported dynamic Components modules without a replacement
+
+## 0.3.0 (2024-12-05)
 
 ### Enhancements
-
+  - Support Phoenix LiveView 1.0
+  - Add `Beacon.Plug` in the `:beacon` pipeline
+  - Generate sites in the main host app alias to allow mixing routes
   - Introduce global process lock for Loader Workers, preventing multiple workers from
     attempting to compile the same module simultaneously
+  - Page Warming - Beacon will now eagerly load a small number of pages (default 10) at boot time for SEO
+  - `Beacon.Config` option `:page_warming` can change the number of pages to warm, specify which pages, or disable warming per site
+  - Only start reachable sites on boot to save resources
+  - Warn when a site defined in the router is not reachable
+  - Add `Beacon.Plug` for consistent rendering when using Page Variants
+  - `mix beacon.install` now adds `Beacon.Plug` to host app Router
+
+### Fixes
+  - Rename arg from `name` to `tag_name` in dynamic_tag component
+  - Remove self dependency on ErrorPage module
+  - Allow `:admin` source for BeaconAssigns in unpublished Pages
+
+### Chores
+  - Isolate dynamic function calls
+
+### Documentation
+  - Add Deployment Topologies guide
 
 ## 0.2.2 (2024-11-17)
 

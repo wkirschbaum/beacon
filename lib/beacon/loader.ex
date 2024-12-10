@@ -26,6 +26,40 @@ defmodule Beacon.Loader do
     end
   end
 
+  def safe_apply_mfa(site, module, function, args, opts \\ []) do
+    if :erlang.module_loaded(module) do
+      apply(module, function, args)
+    else
+      case GenServer.call(worker(site), {:apply_mfa, module, function, args}) do
+        {:ok, result} ->
+          result
+
+        {:error, error, stacktrace} ->
+          raise_invoke_error(site, error, module, function, args, opts[:context], stacktrace)
+      end
+    end
+  rescue
+    error ->
+      if live_data_module?(module) do
+        # LiveData is user-provided code, which always has the possibility of errors.
+        # In this case, we want to ensure the original error is surfaced to the user for easier debugging.
+        reraise error, __STACKTRACE__
+      else
+        raise_invoke_error(site, error, module, function, args, opts[:context], __STACKTRACE__)
+      end
+  end
+
+  defp raise_invoke_error(site, error, module, function, args, context, stacktrace) do
+    reraise Beacon.InvokeError, [site: site, error: error, module: module, function: function, args: args, context: context], stacktrace
+  end
+
+  defp live_data_module?(module) do
+    case module |> Module.split() |> List.last() do
+      "LiveData" -> true
+      _ -> false
+    end
+  end
+
   defp worker(site) do
     supervisor = Beacon.Registry.via({site, Beacon.LoaderSupervisor})
     config = %{site: site}
@@ -327,6 +361,10 @@ defmodule Beacon.Loader do
     site
     |> Loader.Components.module_name()
     |> unload()
+
+    # consider implementing HTML and Tag engines
+    # to intercept component module calls
+    load_components_module(site)
 
     load_runtime_css(site)
 

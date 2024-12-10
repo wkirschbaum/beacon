@@ -18,6 +18,46 @@ defmodule Beacon.LoaderTest do
     [site: site]
   end
 
+  describe "safe_apply_mfa" do
+    setup do
+      # reset (turn off) beacon autoloader
+      Process.delete(:__beacon_site__)
+      Process.flag(:error_handler, :error_handler)
+      :ok
+    end
+
+    test "loaded module" do
+      assert Loader.safe_apply_mfa(default_site(), String, :to_integer, ["1"]) == 1
+    end
+
+    test "undefined module" do
+      assert_raise Beacon.InvokeError, "error applying Foo.bar/0 on site my_site", fn ->
+        Loader.safe_apply_mfa(default_site(), Foo, :bar, [])
+      end
+    end
+
+    test "undefined function" do
+      assert_raise Beacon.InvokeError, "error applying String.foo/1 on site my_site", fn ->
+        Loader.safe_apply_mfa(default_site(), String, :foo, ["bar"])
+      end
+    end
+
+    test "forwards live data errors" do
+      live_data = beacon_live_data_fixture(path: "/error")
+      beacon_live_data_assign_fixture(live_data: live_data, format: :elixir, key: "test", value: "String.foo()")
+
+      assert_raise UndefinedFunctionError, "function String.foo/0 is undefined or private", fn ->
+        assert assigns_for_path("/error")
+      end
+    end
+
+    defp assigns_for_path(path) do
+      path_list = String.split(path, "/", trim: true)
+      module = Beacon.Loader.fetch_live_data_module(default_site())
+      module.live_data(path_list, %{})
+    end
+  end
+
   describe "populate default components" do
     test "seeds initial data", %{site: site} do
       assert Repo.all(Content.Component) == []

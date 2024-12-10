@@ -1,7 +1,7 @@
 defmodule Beacon.MixProject do
   use Mix.Project
 
-  @version "0.2.2"
+  @version "0.3.1"
   @source_url "https://github.com/BeaconCMS/beacon"
   @homepage_url "https://beaconcms.org"
 
@@ -45,7 +45,8 @@ defmodule Beacon.MixProject do
         Website: @homepage_url,
         DockYard: "https://dockyard.com"
       },
-      files: ~w(lib priv .formatter.exs mix.exs CHANGELOG.md LICENSE.md)
+      files: ~w(lib priv .formatter.exs mix.exs CHANGELOG.md LICENSE.md),
+      exclude_patterns: ["/priv/plts"]
     ]
   end
 
@@ -53,7 +54,7 @@ defmodule Beacon.MixProject do
     [
       # Overridable
       override_dep(:phoenix, "~> 1.7", "PHOENIX_VERSION", "PHOENIX_PATH"),
-      override_dep(:phoenix_live_view, "~> 0.20", "PHOENIX_LIVE_VIEW_VERSION", "PHOENIX_LIVE_VIEW_PATH"),
+      override_dep(:phoenix_live_view, "~> 0.20 or ~> 1.0", "PHOENIX_LIVE_VIEW_VERSION", "PHOENIX_LIVE_VIEW_PATH"),
       override_dep(:mdex, "~> 0.2", "MDEX_VERSION", "MDEX_PATH"),
 
       # Runtime

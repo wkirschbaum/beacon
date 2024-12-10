@@ -27,9 +27,9 @@ defmodule Beacon.Template.HEEx.HEExDecoderTest do
   end
 
   test "eex expressions" do
-    assert_equal(~S|<%= _a = true %>|)
-    assert_equal(~S|value: <%= 1 %>|)
-    assert_equal(~S|<% _a = 1 %>|)
+    assert_equal(~S|{_a = true}|)
+    assert_equal(~S|value: {1}|)
+    assert_equal(~S|{_a = 1}|)
   end
 
   test "eex blocks" do
@@ -57,7 +57,7 @@ defmodule Beacon.Template.HEEx.HEExDecoderTest do
     assert_equal(
       ~S"""
       <%= for val <- @vals do %>
-        <%= val %>
+        {val}
       <% end %>
       """,
       %{vals: [1]}
@@ -132,8 +132,8 @@ defmodule Beacon.Template.HEEx.HEExDecoderTest do
 
       assert_equal(~S"""
       <.table id="users" rows={[%{id: 1, username: "foo"}]}>
-        <:col :let={user} label="id"><%= user.id %></:col>
-        <:col :let={user} label="username"><%= user.username %></:col>
+        <:col :let={user} label="id">{user.id}</:col>
+        <:col :let={user} label="username">{user.username}</:col>
       </.table>
       """)
     end
@@ -147,7 +147,7 @@ defmodule Beacon.Template.HEEx.HEExDecoderTest do
         slots: [
           %{name: "inner_block", opts: [required: true]}
         ],
-        template: ~S|<.dynamic_tag name={@name}><%= render_slot(@inner_block) %></.dynamic_tag>|,
+        template: ~S|<.dynamic_tag tag_name={@name}><%= render_slot(@inner_block) %></.dynamic_tag>|,
         example: ~S|<.html_tag name="p">content</.tag>|
       )
 
@@ -160,7 +160,7 @@ defmodule Beacon.Template.HEEx.HEExDecoderTest do
   end
 
   test "live data assigns" do
-    assert_equal(~S|<%= @name %>|, %{name: "Beacon"})
+    assert_equal(~S|{@name}|, %{name: "Beacon"})
   end
 
   test "script tag" do

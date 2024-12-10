@@ -19,14 +19,10 @@ defmodule Beacon do
   * `Beacon.Test` - testings utilities.
 
   Get started with [your first site](https://hexdocs.pm/beacon/your-first-site.html) and check out the guides for more information.
-
   """
 
   @doc false
   use Supervisor
-
-  alias Beacon.Config
-
   require Logger
 
   @doc """
@@ -51,19 +47,22 @@ defmodule Beacon do
 
   ## Examples
 
-      # config.exs or runtime.exs
-      config :my_app, Beacon,
-        sites: [
-          [site: :my_site, endpoint: MyAppWeb.Endpoint]
-        ]
+      # runtime.exs
+      config :beacon,
+        my_site: [site: :my_site, repo: MyApp.Repo, endpoint: MyAppWeb.Endpoint, router: MyAppWeb.Router]
 
       # lib/my_app/application.ex
       def start(_type, _args) do
         children = [
           MyApp.Repo,
           {Phoenix.PubSub, name: MyApp.PubSub},
-          {Beacon, Application.fetch_env!(:my_app, Beacon)}, # <- added Beacon here
-          MyAppWeb.Endpoint
+          MyAppWeb.Endpoint,
+          {Beacon,
+           [
+             sites: [
+               Application.fetch_env!(:beacon, :my_site)
+             ]
+           ]}
         ]
 
         opts = [strategy: :one_for_one, name: MyApp.Supervisor]
@@ -75,11 +74,14 @@ defmodule Beacon do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc false
   @impl true
   def init(opts) do
-    sites =
-      Keyword.get(opts, :sites) ||
-        Logger.warning("Beacon will start with no sites configured. See `Beacon.start_link/1` for more info.")
+    sites = Keyword.get(opts, :sites, [])
+
+    if sites == [] do
+      Logger.warning("Beacon will start with no sites configured. See `Beacon.start_link/1` for more info.")
+    end
 
     # TODO: pubsub per site?
     # children = [
@@ -90,7 +92,7 @@ defmodule Beacon do
 
     children =
       Enum.reduce(sites, [], fn opts, acc ->
-        config = Config.new(opts)
+        config = Beacon.Config.new(opts)
 
         # we only care about starting sites that are valid and reachable
         cond do
@@ -157,14 +159,12 @@ defmodule Beacon do
   end
 
   @doc false
-  # This should always be used when calling dynamic modules to provide better error messages
-  def apply_mfa(module, function, args, opts \\ []) when is_atom(module) and is_atom(function) and is_list(args) and is_list(opts) do
-    apply(module, function, args)
-  rescue
-    error ->
-      context = Keyword.get(opts, :context, nil)
-      mfa = Exception.format_mfa(module, function, length(args))
-      message = "error applying #{mfa}"
-      reraise Beacon.InvokeError, [message: message, error: error, args: args, context: context], __STACKTRACE__
+  # This should always be used when calling dynamic modules
+  # 1. Isolate function calls
+  # 2. Enable Beacon's autoloading mechanism (ErrorHandler)
+  # 3. Provide more meaningful error messages
+  def apply_mfa(site, module, function, args, opts \\ [])
+      when is_atom(site) and is_atom(module) and is_atom(function) and is_list(args) and is_list(opts) do
+    Beacon.Loader.safe_apply_mfa(site, module, function, args, opts)
   end
 end
