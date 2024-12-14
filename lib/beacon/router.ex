@@ -145,6 +145,9 @@ defmodule Beacon.Router do
           get "/__beacon_assets__/css-:md5", Beacon.Web.AssetsController, :css, assigns: %{site: opts[:site]}
           get "/__beacon_assets__/js-:md5", Beacon.Web.AssetsController, :js, assigns: %{site: opts[:site]}
 
+          # simulate a beacon page inside site prefix so we can check this site is reachable?/2
+          get "/__beacon_check__", Beacon.Web.CheckController, :check, metadata: %{site: opts[:site]}
+
           live "/*path", Beacon.Web.PageLive, :path
         end
       end
@@ -250,30 +253,29 @@ defmodule Beacon.Router do
   @doc false
   # Tells if a `beacon_site` is reachable in the current environment.
   #
-  # Supposed the following router:
-  #
-  #   scope "/", MyAppWeb, host: ["beacon-site-a.fly.dev"] do
-  #     pipe_through [:browser]
-  #     beacon_site "/", site: :site_a
-  #   end
-  #
-  #   scope "/", MyAppWeb, host: ["beacon-site-b.fly.dev"] do
-  #     pipe_through [:browser]
-  #     beacon_site "/", site: :site_b
-  #   end
-  #
-  # On a node deployed to beacon-site-a.fly.dev, the second `beacon_site`
-  # will never match, so starting `:site_b` is a waste of resources
-  # and a common cause of problems on BeaconLiveAdmin since we can't resolve URLs properly.
-  #
-  # Similarly, if a `get "/"` is added _before_ either `beacon_site` that `get` would always
-  # match and invalidate the `beacon_site` mount.
+  # It's considered reachable if a dynamic page can be served on the site prefix.
   def reachable?(%Beacon.Config{} = config, opts \\ []) do
     %{site: site, endpoint: endpoint, router: router} = config
-    host = Keyword.get_lazy(opts, :host, fn -> endpoint.host() end)
-    prefix = router.__beacon_scoped_prefix_for_site__(site)
+    reachable?(site, endpoint, router, opts)
+  rescue
+    # missing router or missing beacon macros in the router
+    _ -> false
+  end
 
-    case Phoenix.Router.route_info(router, "GET", prefix, host) do
+  defp reachable?(site, endpoint, router, opts) do
+    host = Keyword.get_lazy(opts, :host, fn -> endpoint.host() end)
+
+    prefix =
+      Keyword.get_lazy(opts, :prefix, fn ->
+        router.__beacon_scoped_prefix_for_site__(site)
+      end)
+
+    path = Beacon.Router.sanitize_path(prefix <> "/__beacon_check__")
+
+    case Phoenix.Router.route_info(router, "GET", path, host) do
+      %{site: ^site, plug: Beacon.Web.CheckController} ->
+        true
+
       %{phoenix_live_view: {Beacon.Web.PageLive, _, _, %{extra: %{session: %{"beacon_site" => ^site}}}}} ->
         true
 
